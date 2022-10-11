@@ -70,7 +70,15 @@
         <repository>
             <id>confluent</id>
             <name>Confluent</name>
-            <url>${confluent.maven.repo}</url>
+            <url>https://packages.confluent.io/maven/</url>
+        </repository>
+        <repository>
+            <id>life360-nexus</id>
+            <name>Life360 Nexus</name>
+            <url>https://nexus.prod.life360.com/repository/maven-public</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
         </repository>
     </repositories>
 
@@ -223,7 +231,6 @@
                     <artifactId>guava</artifactId>
                 </exclusion>
             </exclusions>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>junit</groupId>

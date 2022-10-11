@@ -20,7 +20,8 @@ package io.confluent.connect.s3.format.parquet;
 import static io.confluent.connect.s3.util.Utils.getAdjustedFilename;
 import static io.confluent.connect.s3.util.Utils.sinkRecordToLoggableString;
 
-import io.confluent.connect.avro.AvroData;
+import com.google.protobuf.DynamicMessage;
+import io.confluent.connect.protobuf.ProtobufData;
 import io.confluent.connect.s3.S3SinkConnectorConfig;
 import io.confluent.connect.s3.storage.IORecordWriter;
 import io.confluent.connect.s3.format.RecordViewSetter;
@@ -29,16 +30,16 @@ import io.confluent.connect.s3.storage.S3ParquetOutputStream;
 import io.confluent.connect.s3.storage.S3Storage;
 import io.confluent.connect.storage.format.RecordWriter;
 import io.confluent.connect.storage.format.RecordWriterProvider;
-import org.apache.avro.generic.GenericRecord;
+import io.confluent.kafka.serializers.protobuf.ProtobufSchemaAndValue;
 import org.apache.kafka.connect.data.Field;
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.sink.SinkRecord;
-import org.apache.parquet.avro.AvroParquetWriter;
-import org.apache.parquet.avro.AvroWriteSupport;
 import org.apache.parquet.hadoop.ParquetFileWriter;
 import org.apache.parquet.hadoop.ParquetWriter;
 import org.apache.parquet.io.OutputFile;
 import org.apache.parquet.io.PositionOutputStream;
+import org.apache.parquet.proto.ProtoParquetWriter;
+import org.apache.parquet.proto.ProtoWriteSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,11 +53,11 @@ public class ParquetRecordWriterProvider extends RecordViewSetter
   private static final String EXTENSION = ".parquet";
   private static final int PAGE_SIZE = 64 * 1024;
   private final S3Storage storage;
-  private final AvroData avroData;
+  private final ProtobufData protobufData;
 
-  ParquetRecordWriterProvider(S3Storage storage, AvroData avroData) {
+  ParquetRecordWriterProvider(S3Storage storage, ProtobufData protobufData) {
     this.storage = storage;
-    this.avroData = avroData;
+    this.protobufData = protobufData;
   }
 
   @Override
@@ -70,7 +71,7 @@ public class ParquetRecordWriterProvider extends RecordViewSetter
         new IORecordWriter() {
           final String adjustedFilename = getAdjustedFilename(recordView, filename, getExtension());
           Schema schema = null;
-          ParquetWriter<GenericRecord> writer;
+          ParquetWriter<DynamicMessage> writer;
           S3ParquetOutputFile s3ParquetOutputFile;
 
           @Override
@@ -78,33 +79,20 @@ public class ParquetRecordWriterProvider extends RecordViewSetter
             if (schema == null || writer == null) {
               schema = recordView.getViewSchema(record, true);
               log.info("Opening record writer for: {}", adjustedFilename);
-              org.apache.avro.Schema avroSchema = avroData.fromConnectSchema(schema);
               s3ParquetOutputFile = new S3ParquetOutputFile(storage, adjustedFilename);
-              AvroParquetWriter.Builder<GenericRecord> builder =
-                  AvroParquetWriter.<GenericRecord>builder(s3ParquetOutputFile)
-                      .withSchema(avroSchema)
+              ProtoParquetWriter.Builder<DynamicMessage> builder =
+                  ProtoParquetWriter.<DynamicMessage>builder(s3ParquetOutputFile)
                       .withWriteMode(ParquetFileWriter.Mode.OVERWRITE)
                       .withDictionaryEncoding(true)
                       .withCompressionCodec(storage.conf().parquetCompressionCodecName())
                       .withPageSize(PAGE_SIZE);
-              if (schemaHasArrayOfOptionalItems(schema, /*seenSchemas=*/null)) {
-                // If the schema contains an array of optional items, then
-                // it is possible that the array may have null items during the
-                // writing process.  In this case, we set a flag so as not to
-                // incur a NullPointerException
-                log.debug(
-                    "Setting \"" + AvroWriteSupport.WRITE_OLD_LIST_STRUCTURE
-                        + "\" to false because the schema contains an array "
-                        + "with optional items"
-                );
-                builder.config(AvroWriteSupport.WRITE_OLD_LIST_STRUCTURE, "false");
-              }
+              builder.config(ProtoWriteSupport.PB_CLASS_WRITE, "com.life360.common.kafka.schema.adornment_added.v1$AdornmentAdded");
               writer = builder.build();
             }
             log.trace("Sink record with view {}: {}", recordView,
                 sinkRecordToLoggableString(record));
-            Object value = avroData.fromConnectData(schema, recordView.getView(record, true));
-            writer.write((GenericRecord) value);
+            ProtobufSchemaAndValue schemaAndValue = protobufData.fromConnectData(schema, recordView.getView(record, true));
+            writer.write((DynamicMessage) schemaAndValue.getValue());
           }
 
           @Override

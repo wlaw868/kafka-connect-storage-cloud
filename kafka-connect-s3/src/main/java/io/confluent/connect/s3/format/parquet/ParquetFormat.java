@@ -17,7 +17,7 @@
 
 package io.confluent.connect.s3.format.parquet;
 
-import io.confluent.connect.avro.AvroData;
+import io.confluent.connect.protobuf.ProtobufData;
 import io.confluent.connect.s3.S3SinkConnectorConfig;
 import io.confluent.connect.s3.storage.S3Storage;
 import io.confluent.connect.storage.format.Format;
@@ -26,17 +26,17 @@ import io.confluent.connect.storage.format.SchemaFileReader;
 
 public class ParquetFormat implements Format<S3SinkConnectorConfig, String> {
   private final S3Storage storage;
-  private final AvroData avroData;
+  private final ProtobufData protobufData;
 
   // DO NOT change this signature, it is required for instantiation via reflection
   public ParquetFormat(S3Storage storage) {
     this.storage = storage;
-    this.avroData = new AvroData(storage.conf().avroDataConfig());
+    this.protobufData = new ProtobufData();//storage.conf().protobufDataConfig());
   }
 
   @Override
   public RecordWriterProvider<S3SinkConnectorConfig> getRecordWriterProvider() {
-    return new ParquetRecordWriterProvider(storage, avroData);
+    return new ParquetRecordWriterProvider(storage, protobufData);
   }
 
   @Override
@@ -52,7 +52,7 @@ public class ParquetFormat implements Format<S3SinkConnectorConfig, String> {
     );
   }
 
-  public AvroData getAvroData() {
-    return avroData;
+  public ProtobufData getProtobufData() {
+    return protobufData;
   }
 }

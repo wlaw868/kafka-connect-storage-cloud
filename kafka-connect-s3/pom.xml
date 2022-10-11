@@ -45,6 +45,7 @@
         <surefire-junit47.version>2.22.1</surefire-junit47.version>
         <guava.version>30.1.1-jre</guava.version>
         <wiremock.version>2.31.0</wiremock.version>
+        <parquet.version>1.12.3</parquet.version>
     </properties>
 
     <dependencyManagement>
@@ -92,6 +93,21 @@
             <groupId>org.apache.httpcomponents</groupId>
             <artifactId>httpclient</artifactId>
             <version>${httpclient.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.confluent</groupId>
+            <artifactId>kafka-connect-protobuf-converter</artifactId>
+            <version>7.2.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.parquet</groupId>
+            <artifactId>parquet-protobuf</artifactId>
+            <version>${parquet.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.life360.common</groupId>
+            <artifactId>life360-common-proto-schemas</artifactId>
+            <version>11-760cfa5</version>
         </dependency>
         <dependency>
             <groupId>io.findify</groupId>
